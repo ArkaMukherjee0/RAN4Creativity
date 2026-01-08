@@ -256,6 +256,11 @@ def generate_text(
             gen_kwargs["temperature"] = float(temperature)
         if top_p is not None:
             gen_kwargs["top_p"] = float(top_p)
+    else:
+        # Override model's default generation_config to suppress warnings
+        gen_kwargs["temperature"] = None
+        gen_kwargs["top_p"] = None
+        gen_kwargs["top_k"] = None
 
     outputs = model.generate(**gen_kwargs)
 
