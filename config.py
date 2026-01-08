@@ -10,11 +10,12 @@ All experiment parameters in one place for easy tuning.
 
 # Choose one mid-scale model (7B-13B parameters)
 # Options:
+#   - "Qwen/Qwen3-8B"
 #   - "deepseek-ai/deepseek-coder-6.7b-base"
 #   - "deepseek-ai/deepseek-coder-6.7b-instruct"
 #   - "codellama/CodeLlama-7b-hf"
 #   - "codellama/CodeLlama-13b-hf"
-MODEL_NAME = "deepseek-ai/deepseek-coder-6.7b-base"
+MODEL_NAME = "Qwen/Qwen3-8B"
 
 # Memory optimization
 LOAD_IN_8BIT = False  # Set to True if VRAM limited
