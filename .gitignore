@@ -1,0 +1,6 @@
+outputs/
+core/outputs/
+.python-version
+uv.lock
+.venv/
+_pycache_/

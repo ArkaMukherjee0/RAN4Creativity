@@ -35,6 +35,10 @@ TEMPERATURE = 0.8  # Tuned for fluent but varied outputs
 SIGMA_SCALE = 0.01  # Noise magnitude as fraction of embedding norm
 NOISE_SCOPE = "per_sequence"  # "per_sequence" or "per_token"
 
+# Condition D: Temperature + Embedding Noise (combined)
+# Uses TEMPERATURE and SIGMA_SCALE from above
+# This tests whether combining both methods yields additive benefits
+
 # ============================================================================
 # Generation Settings
 # ============================================================================
@@ -81,6 +85,6 @@ DEVICE_MAP = {"": 0}  # Force everything onto GPU 0
 ALG_CLASS_CHOICES = {"greedy", "dp", "graph", "math", "brute", "ds", "other"}
 
 # LLM Judge settings
-GROQ_MODEL = "gpt-oss-120b"
+GROQ_MODEL = "openai/gpt-oss-120b"
 GEMINI_MODEL = "gemini-2.0-flash"
 JUDGE_RATE_LIMIT_DELAY = 0.5  # Seconds between API calls

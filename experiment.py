@@ -490,21 +490,77 @@ class SanityCheckInference:
         print(f"\nCondition C complete: {len(results)} outputs")
         return results
 
+    def run_condition_d(self) -> List[GenerationResult]:
+        """Condition D: Temperature + Embedding Noise (combined)."""
+        print("\n" + "=" * 80)
+        print("CONDITION D: TEMPERATURE + EMBEDDING NOISE")
+        print("=" * 80)
+        print(f"Settings: temp={self.config.TEMPERATURE}, sigma={self.config.SIGMA_SCALE}, {self.config.K_SAMPLES} samples/prompt")
+
+        results = []
+
+        for prompt_idx, prompt_text in enumerate(self.prompts):
+            if self.config.SHOW_PROGRESS:
+                print(f"\nPrompt {prompt_idx + 1}/{len(self.prompts)}")
+
+            for sample_idx in range(self.config.K_SAMPLES):
+                if self.config.VERBOSE and self.config.SHOW_PROGRESS:
+                    print(f"  Sample {sample_idx + 1}/{self.config.K_SAMPLES} (seed={sample_idx})...", end=" ")
+
+                # Activate embedding noise
+                self.noise_injector.set_seed(sample_idx)
+                self.noise_injector.activate()
+
+                # Generate with BOTH temperature sampling AND embedding noise
+                generated = generate_text(
+                    model=self.model,
+                    tokenizer=self.tokenizer,
+                    prompt=prompt_text,
+                    do_sample=True,  # Enable sampling
+                    temperature=self.config.TEMPERATURE,  # Use temperature
+                    max_new_tokens=self.config.MAX_NEW_TOKENS,
+                    min_new_tokens=self.config.MIN_NEW_TOKENS,
+                    seed=sample_idx,  # For reproducibility of sampling
+                )
+
+                self.noise_injector.deactivate()
+
+                result = GenerationResult(
+                    condition="D",
+                    prompt_idx=prompt_idx,
+                    sample_idx=sample_idx,
+                    prompt_text=prompt_text,
+                    generated_text=generated,
+                    timestamp=datetime.now().isoformat(),
+                    seed=sample_idx,
+                )
+                results.append(result)
+
+                if self.config.VERBOSE and self.config.SHOW_PROGRESS:
+                    print(f"{len(generated)} chars")
+
+        print(f"\nCondition D complete: {len(results)} outputs")
+        return results
+
     def run_all_conditions(self) -> List[GenerationResult]:
-        """Run all three conditions in sequence."""
+        """Run all four conditions in sequence."""
         print("\n" + "=" * 80)
         print("RUNNING ALL CONDITIONS")
         print("=" * 80)
         print(f"Total prompts: {len(self.prompts)}")
         print(f"Expected outputs:")
-        print(f"  Condition A: {len(self.prompts)}")
-        print(f"  Condition B: {len(self.prompts) * self.config.K_SAMPLES}")
-        print(f"  Condition C: {len(self.prompts) * self.config.K_SAMPLES}")
+        print(f"  Condition A: {len(self.prompts)} (deterministic baseline)")
+        print(f"  Condition B: {len(self.prompts) * self.config.K_SAMPLES} (temperature only)")
+        print(f"  Condition C: {len(self.prompts) * self.config.K_SAMPLES} (noise only)")
+        print(f"  Condition D: {len(self.prompts) * self.config.K_SAMPLES} (temperature + noise)")
+        total = len(self.prompts) * (1 + 3 * self.config.K_SAMPLES)
+        print(f"  Total: {total}")
 
         all_results = []
         all_results.extend(self.run_condition_a())
         all_results.extend(self.run_condition_b())
         all_results.extend(self.run_condition_c())
+        all_results.extend(self.run_condition_d())
 
         self.results = all_results
         return all_results
@@ -574,10 +630,15 @@ def main():
     print("Configuration:")
     print(f"  Model: {config.MODEL_NAME}")
     print(f"  Prompts: {config.N_PROMPTS}")
-    print(f"  Samples per condition: 1 (A), {config.K_SAMPLES} (B), {config.K_SAMPLES} (C)")
-    print(f"  Temperature (B): {config.TEMPERATURE}")
-    print(f"  Sigma scale (C): {config.SIGMA_SCALE}")
+    print(f"  Samples per condition: 1 (A), {config.K_SAMPLES} (B/C/D)")
+    print(f"  Temperature (B, D): {config.TEMPERATURE}")
+    print(f"  Sigma scale (C, D): {config.SIGMA_SCALE}")
     print(f"  Output directory: {config.OUTPUT_DIR}")
+    print(f"\nConditions:")
+    print(f"  A: Deterministic baseline (temp=0, no noise)")
+    print(f"  B: Temperature sampling only (temp={config.TEMPERATURE})")
+    print(f"  C: Embedding noise only (sigma={config.SIGMA_SCALE})")
+    print(f"  D: Temperature + Noise combined (temp={config.TEMPERATURE}, sigma={config.SIGMA_SCALE})")
 
     print("\n" + "=" * 80)
     response = input("Proceed with experiment? [y/N]: ")
@@ -597,9 +658,10 @@ def main():
     print("EXPERIMENT COMPLETE")
     print("=" * 80)
     print(f"\nGenerated {len(results)} total outputs:")
-    print(f"  Condition A: {sum(1 for r in results if r.condition == 'A')}")
-    print(f"  Condition B: {sum(1 for r in results if r.condition == 'B')}")
-    print(f"  Condition C: {sum(1 for r in results if r.condition == 'C')}")
+    print(f"  Condition A (deterministic):    {sum(1 for r in results if r.condition == 'A')}")
+    print(f"  Condition B (temperature):      {sum(1 for r in results if r.condition == 'B')}")
+    print(f"  Condition C (noise):            {sum(1 for r in results if r.condition == 'C')}")
+    print(f"  Condition D (temp + noise):     {sum(1 for r in results if r.condition == 'D')}")
     print(f"\nOutputs saved to: {config.OUTPUT_DIR}")
 
 
