@@ -389,18 +389,15 @@ class LLMJudge:
 
     def _init_groq(self, model: Optional[str]):
         try:
-            from openai import OpenAI
+            from groq import Groq
         except ImportError:
-            raise SystemExit("Missing openai package. Install with: pip install openai")
+            raise SystemExit("Missing groq package. Install with: pip install groq")
 
         api_key = os.environ.get("GROQ_API_KEY")
         if not api_key:
             raise SystemExit("Set GROQ_API_KEY environment variable")
 
-        self.client = OpenAI(
-            api_key=api_key,
-            base_url="https://api.groq.com/openai/v1",
-        )
+        self.client = Groq()
         self.model = model or os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile")
 
     def _init_gemini(self, model: Optional[str]):
@@ -432,7 +429,10 @@ class LLMJudge:
         if self.provider == "groq":
             response = self.client.chat.completions.create(
                 model=self.model,
-                messages=[{"role": "user", "content": prompt}],
+                messages=[
+                    {"role": "user", "content": prompt}
+                    ],
+                # reasoning_effort="medium",
             )
             return response.choices[0].message.content
 

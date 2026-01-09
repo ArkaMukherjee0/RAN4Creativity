@@ -15,7 +15,7 @@ All experiment parameters in one place for easy tuning.
 #   - "deepseek-ai/deepseek-coder-6.7b-instruct"
 #   - "codellama/CodeLlama-7b-hf"
 #   - "codellama/CodeLlama-13b-hf"
-MODEL_NAME = "Qwen/Qwen3-8B"
+MODEL_NAME = "meta-llama/Llama-3.1-8B"
 
 # Memory optimization
 LOAD_IN_8BIT = False  # Set to True if VRAM limited
@@ -81,6 +81,6 @@ DEVICE_MAP = {"": 0}  # Force everything onto GPU 0
 ALG_CLASS_CHOICES = {"greedy", "dp", "graph", "math", "brute", "ds", "other"}
 
 # LLM Judge settings
-GROQ_MODEL = "llama-3.3-70b-versatile"
+GROQ_MODEL = "gpt-oss-120b"
 GEMINI_MODEL = "gemini-2.0-flash"
 JUDGE_RATE_LIMIT_DELAY = 0.5  # Seconds between API calls
