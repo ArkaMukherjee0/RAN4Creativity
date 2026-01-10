@@ -10,12 +10,15 @@ Usage:
     python core/experiment.py --num_prompts 10 --num_generations 100
     python core/experiment.py --num_prompts 35 --num_generations 50
     python core/experiment.py --num_generations 100 --num_prompts 10 --model_name 'meta-llama/Llama-3.1-8B'
+    python core/experiment.py --gpu 0 --model_name 'deepseek-ai/deepseek-coder-6.7b-base'
+    python core/experiment.py --gpu 1 --num_generations 50 --model_name 'meta-llama/Llama-3.1-8B'
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from dataclasses import dataclass, asdict
 from datetime import datetime
@@ -652,7 +655,18 @@ def main():
         default=config.MODEL_NAME,
         help=f"HuggingFace model name (default: {config.MODEL_NAME})"
     )
+    parser.add_argument(
+        "--gpu",
+        type=str,
+        default=None,
+        help="GPU device ID to use (e.g., '0', '1', '0,1' for multiple GPUs). If not specified, uses all available GPUs."
+    )
     args = parser.parse_args()
+
+    # Set GPU visibility if specified
+    if args.gpu is not None:
+        os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
+        print(f"Setting CUDA_VISIBLE_DEVICES={args.gpu}")
 
     # Override config with CLI arguments
     num_prompts = args.num_prompts
@@ -662,6 +676,10 @@ def main():
     # Update config
     config.K_SAMPLES = num_generations
     config.MODEL_NAME = model_name
+
+    # Create output directory with model name
+    model_short_name = model_name.split('/')[-1]  # e.g., "Llama-3.1-8B" from "meta-llama/Llama-3.1-8B"
+    output_dir = Path(config.OUTPUT_DIR) / model_short_name
 
     # Calculate total inferences
     total_inferences = num_prompts * num_generations * 4
@@ -674,12 +692,13 @@ def main():
 
     print("Configuration:")
     print(f"  Model: {config.MODEL_NAME}")
+    print(f"  GPU: {args.gpu if args.gpu else 'all available'}")
     print(f"  Prompts: {num_prompts}")
     print(f"  Samples per condition: {num_generations} (A/B/C/D)")
     print(f"  Total inferences: {total_inferences} ({num_prompts} prompts × {num_generations} samples × 4 conditions)")
     print(f"  Temperature (B, D): {config.TEMPERATURE}")
     print(f"  Sigma scale (C, D): {config.SIGMA_SCALE}")
-    print(f"  Output directory: {config.OUTPUT_DIR}")
+    print(f"  Output directory: {output_dir}")
     print(f"\nConditions:")
     print(f"  A: Deterministic baseline (temp=0, no noise)")
     print(f"  B: Temperature sampling only (temp={config.TEMPERATURE})")
@@ -698,7 +717,7 @@ def main():
     inference.setup()
 
     results = inference.run_all_conditions()
-    inference.save_results(Path(config.OUTPUT_DIR))
+    inference.save_results(output_dir)
 
     print("\n" + "=" * 80)
     print("EXPERIMENT COMPLETE")
@@ -708,8 +727,15 @@ def main():
     print(f"  Condition B (temperature):      {sum(1 for r in results if r.condition == 'B')}")
     print(f"  Condition C (noise):            {sum(1 for r in results if r.condition == 'C')}")
     print(f"  Condition D (temp + noise):     {sum(1 for r in results if r.condition == 'D')}")
-    print(f"\nOutputs saved to: {config.OUTPUT_DIR}")
+    print(f"\nOutputs saved to: {output_dir}")
 
 
 if __name__ == "__main__":
     main()
+
+
+""" 
+Usage examples:
+
+uv run experiment.py --gpu 0 --model_name 'deepseek-ai/deepseek-coder-6.7b-base' --num_generations 50 --num_prompts 10
+"""

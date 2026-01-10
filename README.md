@@ -586,10 +586,19 @@ python core/experiment.py --num_prompts 35 --num_generations 50
 # Specify a different model
 python core/experiment.py --num_generations 100 --num_prompts 10 --model_name 'meta-llama/Llama-3.1-8B'
 
+# Run on specific GPU (useful for concurrent experiments)
+python core/experiment.py --gpu 0 --model_name 'deepseek-ai/deepseek-coder-6.7b-base'
+
+# Run two models concurrently on different GPUs
+# Terminal 1:
+python core/experiment.py --gpu 0 --num_generations 50 --model_name 'meta-llama/Llama-3.1-8B'
+# Terminal 2:
+python core/experiment.py --gpu 1 --num_generations 50 --model_name 'deepseek-ai/deepseek-coder-6.7b-base'
+
 # This will:
 # 1. Load the model (default: Llama-3.1-8B, configurable via CLI)
 # 2. Run all four conditions (A, B, C, D)
-# 3. Save outputs to core/outputs/
+# 3. Save outputs to core/outputs/<model_name>/
 # Total inferences = num_prompts × num_generations × 4 conditions
 ```
 
@@ -617,6 +626,12 @@ MIN_NEW_TOKENS = 64
 - `--num_prompts`: Number of prompts to use (1-35, default: 10)
 - `--num_generations`: Number of generations per prompt (default: 10)
 - `--model_name`: HuggingFace model name (default: meta-llama/Llama-3.1-8B)
+- `--gpu`: GPU device ID to use (e.g., '0', '1', '0,1' for multiple GPUs). If not specified, uses all available GPUs.
+
+**Output Directory Structure:**
+- Outputs are saved to `core/outputs/<model_short_name>/`
+- Model short name is extracted from the full model path (e.g., `Llama-3.1-8B` from `meta-llama/Llama-3.1-8B`)
+- This allows concurrent experiments with different models without conflicts
 
 ### Running Evaluation
 
@@ -648,13 +663,20 @@ python core/evaluate.py metrics
 │   ├── config.py          # All experiment configuration
 │   ├── prompts.py         # 35 CP problem generation prompts
 │   ├── experiment.py      # Main experiment (model loading, noise, inference)
-│   └── evaluate.py        # Evaluation (metrics, LLM judges)
-└── core/outputs/          # Generated outputs (created at runtime)
-    ├── A_0_0.txt          # Condition A outputs
-    ├── B_0_0.txt          # Condition B outputs
-    ├── C_0_0.txt          # Condition C outputs
-    ├── D_0_0.txt          # Condition D outputs
-    └── all_results.json   # Consolidated results
+│   ├── evaluate.py        # Evaluation (metrics, LLM judges)
+│   └── outputs/           # Generated outputs (created at runtime)
+│       ├── Llama-3.1-8B/  # Outputs for Llama-3.1-8B model
+│       │   ├── A_0_0.txt
+│       │   ├── B_0_0.txt
+│       │   ├── C_0_0.txt
+│       │   ├── D_0_0.txt
+│       │   └── all_results.json
+│       └── deepseek-coder-6.7b-base/  # Outputs for DeepSeek model
+│           ├── A_0_0.txt
+│           ├── B_0_0.txt
+│           ├── C_0_0.txt
+│           ├── D_0_0.txt
+│           └── all_results.json
 ```
 
 ---
