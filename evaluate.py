@@ -532,6 +532,37 @@ def run_judge(
     keep_conditions = {"A", "B", "C", "D"} if include_a else {"B", "C", "D"}
     filtered = [r for r in all_results if r.get("condition") in keep_conditions]
 
+    # Implement weighted sampling: replicate Condition A to match other conditions
+    if include_a and "A" in keep_conditions:
+        # Count samples per condition
+        counts = {c: sum(1 for r in filtered if r["condition"] == c) for c in keep_conditions}
+
+        # Find max count (from B, C, or D)
+        non_a_conditions = {c for c in keep_conditions if c != "A"}
+        if non_a_conditions:
+            max_count = max(counts.get(c, 0) for c in non_a_conditions)
+            a_count = counts.get("A", 0)
+
+            if a_count > 0 and max_count > a_count:
+                # Calculate replication factor
+                replication_factor = max_count // a_count
+
+                print(f"\nWeighted sampling: Replicating Condition A samples")
+                print(f"  Condition A: {a_count} samples")
+                print(f"  Other conditions: {max_count} samples each")
+                print(f"  Replication factor: {replication_factor}x")
+
+                # Replicate Condition A samples
+                a_samples = [r for r in filtered if r["condition"] == "A"]
+                replicated_a = []
+                for _ in range(replication_factor):
+                    replicated_a.extend(a_samples)
+
+                # Replace Condition A samples with replicated versions
+                filtered = [r for r in filtered if r["condition"] != "A"] + replicated_a
+
+                print(f"  After replication: Condition A has {len(replicated_a)} samples\n")
+
     if n_per_condition:
         limited = []
         counts = {c: 0 for c in keep_conditions}

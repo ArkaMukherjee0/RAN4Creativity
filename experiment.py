@@ -363,11 +363,12 @@ class SanityCheckInference:
         print("\nSetup complete")
 
     def run_condition_a(self) -> List[GenerationResult]:
-        """Condition A: Deterministic Baseline (temp=0, no noise, k samples with prompt-specific seed)."""
+        """Condition A: Deterministic Baseline (temp=0, no noise, one sample per prompt)."""
         print("\n" + "=" * 80)
         print("CONDITION A: DETERMINISTIC BASELINE")
         print("=" * 80)
-        print(f"Settings: greedy decoding (temp=0), {self.config.K_SAMPLES} samples/prompt, seed=prompt_idx")
+        print(f"Settings: greedy decoding (temp=0), 1 sample/prompt (deterministic), seed=prompt_idx")
+        print(f"Note: Generating only {len(self.prompts)} outputs (one per prompt) since greedy is deterministic")
 
         results = []
 
@@ -377,35 +378,34 @@ class SanityCheckInference:
 
             self.noise_injector.deactivate()
 
-            # Use prompt_idx as seed for all generations from this prompt
-            for sample_idx in range(self.config.K_SAMPLES):
-                if self.config.VERBOSE and self.config.SHOW_PROGRESS:
-                    print(f"  Sample {sample_idx + 1}/{self.config.K_SAMPLES}...", end=" ")
+            # Generate only ONE sample per prompt (greedy is deterministic)
+            if self.config.VERBOSE and self.config.SHOW_PROGRESS:
+                print(f"  Generating...", end=" ")
 
-                generated = generate_text(
-                    model=self.model,
-                    tokenizer=self.tokenizer,
-                    prompt=prompt_text,
-                    do_sample=False,
-                    temperature=None,
-                    max_new_tokens=self.config.MAX_NEW_TOKENS,
-                    min_new_tokens=self.config.MIN_NEW_TOKENS,
-                    seed=prompt_idx,  # ← Use prompt_idx instead of sample_idx
-                )
+            generated = generate_text(
+                model=self.model,
+                tokenizer=self.tokenizer,
+                prompt=prompt_text,
+                do_sample=False,
+                temperature=None,
+                max_new_tokens=self.config.MAX_NEW_TOKENS,
+                min_new_tokens=self.config.MIN_NEW_TOKENS,
+                seed=prompt_idx,
+            )
 
-                result = GenerationResult(
-                    condition="A",
-                    prompt_idx=prompt_idx,
-                    sample_idx=sample_idx,
-                    prompt_text=prompt_text,
-                    generated_text=generated,
-                    timestamp=datetime.now().isoformat(),
-                    seed=prompt_idx,  # ← Store prompt_idx as the seed
-                )
-                results.append(result)
+            result = GenerationResult(
+                condition="A",
+                prompt_idx=prompt_idx,
+                sample_idx=0,  # Always 0 since we only generate one
+                prompt_text=prompt_text,
+                generated_text=generated,
+                timestamp=datetime.now().isoformat(),
+                seed=prompt_idx,
+            )
+            results.append(result)
 
-                if self.config.VERBOSE and self.config.SHOW_PROGRESS:
-                    print(f"{len(generated)} chars")
+            if self.config.VERBOSE and self.config.SHOW_PROGRESS:
+                print(f"{len(generated)} chars")
 
         print(f"\nCondition A complete: {len(results)} outputs")
         return results
@@ -564,10 +564,10 @@ class SanityCheckInference:
         print("=" * 80)
         print(f"Total prompts: {len(self.prompts)}")
         print(f"Expected outputs:")
-        print(f"  Condition A: {len(self.prompts)} (deterministic baseline)")
-        print(f"  Condition B: {len(self.prompts) * self.config.K_SAMPLES} (temperature only)")
-        print(f"  Condition C: {len(self.prompts) * self.config.K_SAMPLES} (noise only)")
-        print(f"  Condition D: {len(self.prompts) * self.config.K_SAMPLES} (temperature + noise)")
+        print(f"  Condition A: {len(self.prompts)} (deterministic baseline - 1 per prompt)")
+        print(f"  Condition B: {len(self.prompts) * self.config.K_SAMPLES} (temperature only - {self.config.K_SAMPLES} per prompt)")
+        print(f"  Condition C: {len(self.prompts) * self.config.K_SAMPLES} (noise only - {self.config.K_SAMPLES} per prompt)")
+        print(f"  Condition D: {len(self.prompts) * self.config.K_SAMPLES} (temperature + noise - {self.config.K_SAMPLES} per prompt)")
         total = len(self.prompts) * (1 + 3 * self.config.K_SAMPLES)
         print(f"  Total: {total}")
 
@@ -683,7 +683,9 @@ def main():
     output_dir = Path(config.OUTPUT_DIR) / model_short_name
 
     # Calculate total inferences
-    total_inferences = num_prompts * num_generations * 4
+    # Condition A: num_prompts (1 per prompt)
+    # Conditions B, C, D: num_prompts * num_generations each
+    total_inferences = num_prompts + (num_prompts * num_generations * 3)
 
     print("""
 ================================================================================
@@ -695,16 +697,18 @@ def main():
     print(f"  Model: {config.MODEL_NAME}")
     print(f"  GPU: {args.gpu if args.gpu else 'all available'}")
     print(f"  Prompts: {num_prompts}")
-    print(f"  Samples per condition: {num_generations} (A/B/C/D)")
-    print(f"  Total inferences: {total_inferences} ({num_prompts} prompts × {num_generations} samples × 4 conditions)")
+    print(f"  Samples per condition:")
+    print(f"    Condition A (greedy): 1 per prompt = {num_prompts} total")
+    print(f"    Conditions B/C/D: {num_generations} per prompt = {num_prompts * num_generations} each")
+    print(f"  Total inferences: {total_inferences}")
     print(f"  Temperature (B, D): {config.TEMPERATURE}")
     print(f"  Sigma scale (C, D): {config.SIGMA_SCALE}")
     print(f"  Output directory: {output_dir}")
     print(f"\nConditions:")
-    print(f"  A: Deterministic baseline (temp=0, no noise)")
-    print(f"  B: Temperature sampling only (temp={config.TEMPERATURE})")
-    print(f"  C: Embedding noise only (sigma={config.SIGMA_SCALE})")
-    print(f"  D: Temperature + Noise combined (temp={config.TEMPERATURE}, sigma={config.SIGMA_SCALE})")
+    print(f"  A: Deterministic baseline (temp=0, no noise, 1 sample/prompt)")
+    print(f"  B: Temperature sampling only (temp={config.TEMPERATURE}, {num_generations} samples/prompt)")
+    print(f"  C: Embedding noise only (sigma={config.SIGMA_SCALE}, {num_generations} samples/prompt)")
+    print(f"  D: Temperature + Noise combined (temp={config.TEMPERATURE}, sigma={config.SIGMA_SCALE}, {num_generations} samples/prompt)")
 
     print("\n" + "=" * 80)
     response = input("Proceed with experiment? [y/N]: ")
