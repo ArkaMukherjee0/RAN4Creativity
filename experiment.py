@@ -363,23 +363,24 @@ class SanityCheckInference:
         print("\nSetup complete")
 
     def run_condition_a(self) -> List[GenerationResult]:
-        """Condition A: Deterministic Baseline (temp=0, no noise, k samples with different seeds)."""
+        """Condition A: Deterministic Baseline (temp=0, no noise, k samples with prompt-specific seed)."""
         print("\n" + "=" * 80)
         print("CONDITION A: DETERMINISTIC BASELINE")
         print("=" * 80)
-        print(f"Settings: greedy decoding (temp=0), {self.config.K_SAMPLES} samples/prompt")
+        print(f"Settings: greedy decoding (temp=0), {self.config.K_SAMPLES} samples/prompt, seed=prompt_idx")
 
         results = []
 
         for prompt_idx, prompt_text in enumerate(self.prompts):
             if self.config.SHOW_PROGRESS:
-                print(f"\nPrompt {prompt_idx + 1}/{len(self.prompts)}")
+                print(f"\nPrompt {prompt_idx + 1}/{len(self.prompts)} (seed={prompt_idx})")
 
             self.noise_injector.deactivate()
 
+            # Use prompt_idx as seed for all generations from this prompt
             for sample_idx in range(self.config.K_SAMPLES):
                 if self.config.VERBOSE and self.config.SHOW_PROGRESS:
-                    print(f"  Sample {sample_idx + 1}/{self.config.K_SAMPLES} (seed={sample_idx})...", end=" ")
+                    print(f"  Sample {sample_idx + 1}/{self.config.K_SAMPLES}...", end=" ")
 
                 generated = generate_text(
                     model=self.model,
@@ -389,7 +390,7 @@ class SanityCheckInference:
                     temperature=None,
                     max_new_tokens=self.config.MAX_NEW_TOKENS,
                     min_new_tokens=self.config.MIN_NEW_TOKENS,
-                    seed=sample_idx,
+                    seed=prompt_idx,  # ← Use prompt_idx instead of sample_idx
                 )
 
                 result = GenerationResult(
@@ -399,7 +400,7 @@ class SanityCheckInference:
                     prompt_text=prompt_text,
                     generated_text=generated,
                     timestamp=datetime.now().isoformat(),
-                    seed=sample_idx,
+                    seed=prompt_idx,  # ← Store prompt_idx as the seed
                 )
                 results.append(result)
 
