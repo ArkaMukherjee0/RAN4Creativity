@@ -7,10 +7,13 @@ Consolidates: model loading, noise injection, text generation, and inference orc
 
 Usage:
     python core/experiment.py
+    python core/experiment.py --num_prompts 10 --num_generations 100
+    python core/experiment.py --num_prompts 35 --num_generations 50
 """
 
 from __future__ import annotations
 
+import argparse
 import json
 import sys
 from dataclasses import dataclass, asdict
@@ -356,10 +359,11 @@ class SanityCheckInference:
         print("\nSetup complete")
 
     def run_condition_a(self) -> List[GenerationResult]:
-        """Condition A: Deterministic Baseline (temp=0, no noise, 1 sample)."""
+        """Condition A: Deterministic Baseline (temp=0, no noise, k samples with different seeds)."""
         print("\n" + "=" * 80)
         print("CONDITION A: DETERMINISTIC BASELINE")
         print("=" * 80)
+        print(f"Settings: greedy decoding (temp=0), {self.config.K_SAMPLES} samples/prompt")
 
         results = []
 
@@ -369,28 +373,34 @@ class SanityCheckInference:
 
             self.noise_injector.deactivate()
 
-            generated = generate_text(
-                model=self.model,
-                tokenizer=self.tokenizer,
-                prompt=prompt_text,
-                do_sample=False,
-                temperature=None,
-                max_new_tokens=self.config.MAX_NEW_TOKENS,
-                min_new_tokens=self.config.MIN_NEW_TOKENS,
-            )
+            for sample_idx in range(self.config.K_SAMPLES):
+                if self.config.VERBOSE and self.config.SHOW_PROGRESS:
+                    print(f"  Sample {sample_idx + 1}/{self.config.K_SAMPLES} (seed={sample_idx})...", end=" ")
 
-            result = GenerationResult(
-                condition="A",
-                prompt_idx=prompt_idx,
-                sample_idx=0,
-                prompt_text=prompt_text,
-                generated_text=generated,
-                timestamp=datetime.now().isoformat(),
-            )
-            results.append(result)
+                generated = generate_text(
+                    model=self.model,
+                    tokenizer=self.tokenizer,
+                    prompt=prompt_text,
+                    do_sample=False,
+                    temperature=None,
+                    max_new_tokens=self.config.MAX_NEW_TOKENS,
+                    min_new_tokens=self.config.MIN_NEW_TOKENS,
+                    seed=sample_idx,
+                )
 
-            if self.config.VERBOSE:
-                print(f"  Generated {len(generated)} characters")
+                result = GenerationResult(
+                    condition="A",
+                    prompt_idx=prompt_idx,
+                    sample_idx=sample_idx,
+                    prompt_text=prompt_text,
+                    generated_text=generated,
+                    timestamp=datetime.now().isoformat(),
+                    seed=sample_idx,
+                )
+                results.append(result)
+
+                if self.config.VERBOSE and self.config.SHOW_PROGRESS:
+                    print(f"{len(generated)} chars")
 
         print(f"\nCondition A complete: {len(results)} outputs")
         return results
@@ -621,6 +631,32 @@ def main():
     import config
     from prompts import get_all_prompts
 
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description="Run embedding noise experiments")
+    parser.add_argument(
+        "--num_prompts",
+        type=int,
+        default=config.N_PROMPTS,
+        help=f"Number of prompts to use (default: {config.N_PROMPTS}, max: 35)"
+    )
+    parser.add_argument(
+        "--num_generations",
+        type=int,
+        default=config.K_SAMPLES,
+        help=f"Number of generations per prompt per condition (default: {config.K_SAMPLES})"
+    )
+    args = parser.parse_args()
+
+    # Override config with CLI arguments
+    num_prompts = args.num_prompts
+    num_generations = args.num_generations
+
+    # Update config
+    config.K_SAMPLES = num_generations
+
+    # Calculate total inferences
+    total_inferences = num_prompts * num_generations * 4
+
     print("""
 ================================================================================
                         EMBEDDING NOISE EXPERIMENT
@@ -629,8 +665,9 @@ def main():
 
     print("Configuration:")
     print(f"  Model: {config.MODEL_NAME}")
-    print(f"  Prompts: {config.N_PROMPTS}")
-    print(f"  Samples per condition: 1 (A), {config.K_SAMPLES} (B/C/D)")
+    print(f"  Prompts: {num_prompts}")
+    print(f"  Samples per condition: {num_generations} (A/B/C/D)")
+    print(f"  Total inferences: {total_inferences} ({num_prompts} prompts × {num_generations} samples × 4 conditions)")
     print(f"  Temperature (B, D): {config.TEMPERATURE}")
     print(f"  Sigma scale (C, D): {config.SIGMA_SCALE}")
     print(f"  Output directory: {config.OUTPUT_DIR}")
@@ -646,7 +683,7 @@ def main():
         print("Experiment cancelled.")
         return
 
-    prompts = get_all_prompts()[:config.N_PROMPTS]
+    prompts = get_all_prompts()[:num_prompts]
 
     inference = SanityCheckInference(config, prompts)
     inference.setup()

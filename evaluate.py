@@ -613,6 +613,7 @@ def run_judge(
             print(f"  Validity:    {cond1}={s1['validity_mean']:.2f}  {cond2}={s2['validity_mean']:.2f}  Δ={s2['validity_mean'] - s1['validity_mean']:+.2f}")
             print(f"  Pass rate:   {cond1}={s1['validity_pass_rate'] * 100:.1f}%  {cond2}={s2['validity_pass_rate'] * 100:.1f}%")
 
+    compare_conditions("A", "C", "A (greedy) vs C (greedy+noise)")
     compare_conditions("B", "C", "B (temp) vs C (noise)")
     compare_conditions("B", "D", "B (temp) vs D (temp+noise)")
     compare_conditions("C", "D", "C (noise) vs D (temp+noise)")
@@ -683,8 +684,8 @@ def main():
         if not results_path.exists():
             raise SystemExit(f"Missing results: {results_path}")
 
-        output_jsonl = Path(f"{config.OUTPUT_DIR}/{args.provider}_judgments.jsonl")
-        output_summary = Path(f"{config.OUTPUT_DIR}/{args.provider}__{config.MODEL_NAME}_judgments_summary.json")
+        output_jsonl = Path(f"{config.OUTPUT_DIR}/{args.provider}_d2__judgments.jsonl")
+        output_summary = Path(f"{config.OUTPUT_DIR}/{args.provider}__{config.MODEL_NAME}_d2_judgments_summary.json")
 
         run_judge(
             provider=args.provider,

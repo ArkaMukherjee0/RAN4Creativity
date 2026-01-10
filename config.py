@@ -34,6 +34,7 @@ TEMPERATURE = 0.8  # Tuned for fluent but varied outputs
 # Condition C: Embedding Noise
 SIGMA_SCALE = 0.01  # Noise magnitude as fraction of embedding norm
 NOISE_SCOPE = "per_sequence"  # "per_sequence" or "per_token"
+#TODO: NOISE_SCOPE = "per_token"
 
 # Condition D: Temperature + Embedding Noise (combined)
 # Uses TEMPERATURE and SIGMA_SCALE from above

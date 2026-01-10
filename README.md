@@ -259,10 +259,10 @@ We compare four generation strategies:
 │  ─────────────────────────────────────                              │
 │  Temperature: 0 (greedy)                                            │
 │  Noise: OFF                                                         │
-│  Samples per prompt: 1                                              │
+│  Samples per prompt: 10 (configurable)                              │
 │                                                                     │
-│  Purpose: Establish the "default" output for each prompt            │
-│  Expected: Same output every time (fully deterministic)             │
+│  Purpose: Establish greedy baseline outputs with seed variation     │
+│  Expected: Deterministic outputs (same with same seed)              │
 └─────────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -315,13 +315,14 @@ Step 1: SETUP
 
 Step 2: CONDITION A (Deterministic Baseline)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-For each prompt (10 total):
-    ┌──────────────┐     ┌─────────────────┐     ┌──────────────────┐
-    │ Deactivate   │ ──→ │ Generate with   │ ──→ │ Save result      │
-    │ noise hook   │     │ temp=0, greedy  │     │ A_{prompt}_0.txt │
-    └──────────────┘     └─────────────────┘     └──────────────────┘
+For each prompt (10 total, configurable):
+    For each sample (10 per prompt, configurable):
+        ┌──────────────┐     ┌─────────────────┐     ┌──────────────────┐
+        │ Deactivate   │ ──→ │ Generate with   │ ──→ │ Save result      │
+        │ noise hook   │     │ temp=0, greedy  │     │ A_{p}_{s}.txt    │
+        └──────────────┘     └─────────────────┘     └──────────────────┘
 
-Output: 10 files (1 per prompt)
+Output: 100 files (10 prompts × 10 samples, configurable)
 
 Step 3: CONDITION B (Temperature Sampling)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -381,7 +382,8 @@ Step 6: CONSOLIDATE
 │     └── {condition: "D", prompt_idx: 9, sample_idx: 9, text: "..."}    │
 └─────────────────────────────────────────────────────────────────────────┘
 
-Total outputs: 10 (A) + 100 (B) + 100 (C) + 100 (D) = 310
+Total outputs: 100 (A) + 100 (B) + 100 (C) + 100 (D) = 400
+(Default: 10 prompts × 10 samples × 4 conditions. Configurable via CLI.)
 ```
 
 ### Evaluation Pipeline
@@ -436,6 +438,7 @@ all_results.json
 │   Creativity: mean=6.1, Validity: mean=7.1, Pass rate: 78%             │
 │                                                                         │
 │ Pairwise comparisons:                                                   │
+│   A vs C: Δ Creativity +0.4, Δ Validity +0.2, Δ Pass rate +8%          │
 │   B vs C: Δ Creativity +0.6, Δ Validity +0.6, Δ Pass rate +13%         │
 │   B vs D: Δ Creativity +0.9, Δ Validity +0.3, Δ Pass rate +6%          │
 │   C vs D: Δ Creativity +0.3, Δ Validity -0.3, Δ Pass rate -7%          │
@@ -571,13 +574,20 @@ pip install google-genai  # for Gemini judge
 ### Running the Experiment
 
 ```bash
-# Run the full experiment (A, B, C, D conditions)
+# Run with default settings (10 prompts, 10 generations per prompt)
 python core/experiment.py
+
+# Run with custom configuration
+python core/experiment.py --num_prompts 10 --num_generations 100
+
+# Large scale experiment (35 prompts × 50 generations = 7000 total inferences)
+python core/experiment.py --num_prompts 35 --num_generations 50
 
 # This will:
 # 1. Load the model (default: Llama-3.1-8B)
-# 2. Run all four conditions
+# 2. Run all four conditions (A, B, C, D)
 # 3. Save outputs to core/outputs/
+# Total inferences = num_prompts × num_generations × 4 conditions
 ```
 
 ### Configuration
@@ -586,10 +596,11 @@ Edit `core/config.py` to customize:
 
 ```python
 # Model
-MODEL_NAME = "deepseek-ai/deepseek-coder-6.7b-base"
+MODEL_NAME = "meta-llama/Llama-3.1-8B"
 
-# Experiment parameters
-K_SAMPLES = 10          # Samples per prompt for B, C, and D
+# Experiment parameters (can be overridden via CLI)
+N_PROMPTS = 10          # Number of prompts (max 35 available)
+K_SAMPLES = 10          # Samples per prompt for all conditions (A/B/C/D)
 TEMPERATURE = 0.8       # For conditions B and D
 SIGMA_SCALE = 0.01      # Noise magnitude for conditions C and D
 NOISE_SCOPE = "per_sequence"  # or "per_token"
@@ -598,6 +609,10 @@ NOISE_SCOPE = "per_sequence"  # or "per_token"
 MAX_NEW_TOKENS = 1024
 MIN_NEW_TOKENS = 64
 ```
+
+**CLI Arguments:**
+- `--num_prompts`: Number of prompts to use (1-35, default: 10)
+- `--num_generations`: Number of generations per prompt (default: 10)
 
 ### Running Evaluation
 
@@ -627,7 +642,7 @@ python core/evaluate.py metrics
 ├── core/
 │   ├── __init__.py        # Package marker
 │   ├── config.py          # All experiment configuration
-│   ├── prompts.py         # 10 CP problem generation prompts
+│   ├── prompts.py         # 35 CP problem generation prompts
 │   ├── experiment.py      # Main experiment (model loading, noise, inference)
 │   └── evaluate.py        # Evaluation (metrics, LLM judges)
 └── core/outputs/          # Generated outputs (created at runtime)
@@ -651,9 +666,10 @@ Based on the theory, we expect:
 | Creativity | Moderate | Moderate-High | Highest | Dual perturbation explores more space |
 
 **Key hypotheses**:
-1. Condition C should achieve comparable diversity to Condition B while maintaining higher validity/coherence.
-2. Condition D tests whether combining temperature sampling AND embedding noise yields additive creativity benefits.
-3. Condition D may show increased diversity at the cost of some validity compared to C alone.
+1. **A vs C (greedy baseline)**: Embedding noise should improve creativity and diversity while maintaining validity, even with greedy decoding.
+2. **B vs C (diversity methods)**: Condition C should achieve comparable diversity to Condition B while maintaining higher validity/coherence.
+3. **D (combined approach)**: Combining temperature sampling AND embedding noise tests whether dual perturbation yields additive creativity benefits.
+4. **Trade-offs**: Condition D may show maximum diversity at the cost of some validity compared to C alone.
 
 ---
 
