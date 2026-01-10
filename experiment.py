@@ -9,6 +9,7 @@ Usage:
     python core/experiment.py
     python core/experiment.py --num_prompts 10 --num_generations 100
     python core/experiment.py --num_prompts 35 --num_generations 50
+    python core/experiment.py --num_generations 100 --num_prompts 10 --model_name 'meta-llama/Llama-3.1-8B'
 """
 
 from __future__ import annotations
@@ -645,14 +646,22 @@ def main():
         default=config.K_SAMPLES,
         help=f"Number of generations per prompt per condition (default: {config.K_SAMPLES})"
     )
+    parser.add_argument(
+        "--model_name",
+        type=str,
+        default=config.MODEL_NAME,
+        help=f"HuggingFace model name (default: {config.MODEL_NAME})"
+    )
     args = parser.parse_args()
 
     # Override config with CLI arguments
     num_prompts = args.num_prompts
     num_generations = args.num_generations
+    model_name = args.model_name
 
     # Update config
     config.K_SAMPLES = num_generations
+    config.MODEL_NAME = model_name
 
     # Calculate total inferences
     total_inferences = num_prompts * num_generations * 4

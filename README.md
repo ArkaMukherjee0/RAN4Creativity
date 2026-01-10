@@ -583,8 +583,11 @@ python core/experiment.py --num_prompts 10 --num_generations 100
 # Large scale experiment (35 prompts × 50 generations = 7000 total inferences)
 python core/experiment.py --num_prompts 35 --num_generations 50
 
+# Specify a different model
+python core/experiment.py --num_generations 100 --num_prompts 10 --model_name 'meta-llama/Llama-3.1-8B'
+
 # This will:
-# 1. Load the model (default: Llama-3.1-8B)
+# 1. Load the model (default: Llama-3.1-8B, configurable via CLI)
 # 2. Run all four conditions (A, B, C, D)
 # 3. Save outputs to core/outputs/
 # Total inferences = num_prompts × num_generations × 4 conditions
@@ -613,6 +616,7 @@ MIN_NEW_TOKENS = 64
 **CLI Arguments:**
 - `--num_prompts`: Number of prompts to use (1-35, default: 10)
 - `--num_generations`: Number of generations per prompt (default: 10)
+- `--model_name`: HuggingFace model name (default: meta-llama/Llama-3.1-8B)
 
 ### Running Evaluation
 
