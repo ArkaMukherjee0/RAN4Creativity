@@ -59,7 +59,7 @@ def load_model(
         tokenizer.pad_token = tokenizer.eos_token
 
     model_kwargs = {
-        "device_map": device_map,
+        "device_map": device_map,# None, # # TODO: Local system logic, swap to device_map before pushing
         "torch_dtype": torch_dtype,
         "trust_remote_code": True,
     }
@@ -69,9 +69,15 @@ def load_model(
         model_kwargs.pop("torch_dtype", None)
 
     model = AutoModelForCausalLM.from_pretrained(model_name, **model_kwargs)
+    #model = model.to("cuda:0") # TODO: Local system logic, comment out before pushing
     model.eval()
 
+    # Check if this is a chat model
+    has_chat_template = hasattr(tokenizer, 'chat_template') and tokenizer.chat_template is not None
+    model_type = "chat model (using chat template)" if has_chat_template else "base model (direct text)"
+
     print(f"Model loaded. Device: {next(model.parameters()).device}")
+    print(f"Model type: {model_type}")
     return model, tokenizer
 
 
@@ -232,6 +238,8 @@ def generate_text(
     """
     Generate text from a prompt with consistent decoding settings.
 
+    Supports both base models (direct text) and chat models (with chat template).
+
     Args:
         model: The language model
         tokenizer: The tokenizer
@@ -249,7 +257,28 @@ def generate_text(
     if seed is not None:
         _seed_everything(seed)
 
-    inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
+    # Check if tokenizer has chat template support
+    has_chat_template = hasattr(tokenizer, 'chat_template') and tokenizer.chat_template is not None
+
+    if has_chat_template:
+        # Use chat template format for chat models (e.g., Falcon-H1R-7B)
+        messages = [{"role": "user", "content": prompt}]
+        try:
+            inputs = tokenizer.apply_chat_template(
+                messages,
+                tokenize=True,
+                add_generation_prompt=True,
+                return_tensors="pt"
+            )
+            # apply_chat_template returns input_ids directly, wrap it
+            inputs = {"input_ids": inputs.to(model.device)}
+        except Exception as e:
+            # Fallback to direct tokenization if chat template fails
+            print(f"Warning: Chat template failed ({e}), using direct tokenization")
+            inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
+    else:
+        # Direct tokenization for base models
+        inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
 
     gen_kwargs = dict(
         **inputs,
@@ -323,11 +352,12 @@ class SanityCheckInference:
     - Condition C: Embedding noise (temp=0, with noise)
     """
 
-    def __init__(self, config, prompts_list: List[str]):
+    def __init__(self, config, prompts_list: List[str], checkpoint_path: Optional[Path] = None):
         """
         Args:
             config: Configuration module with settings
             prompts_list: List of prompt strings to use
+            checkpoint_path: Path to checkpoint file for resume functionality
         """
         self.config = config
         self.prompts = prompts_list
@@ -335,6 +365,91 @@ class SanityCheckInference:
         self.tokenizer = None
         self.noise_injector = None
         self.results: List[GenerationResult] = []
+        self.checkpoint_path = checkpoint_path
+        self.checkpoint_state = {
+            'condition_a_complete': False,
+            'condition_b_progress': 0,  # Number of generations completed
+            'condition_c_progress': 0,
+            'condition_d_progress': 0,
+            'results': [],
+        }
+        self.checkpoint_interval = 10  # Save every 10 generations
+
+    def save_checkpoint(self) -> None:
+        """Save current progress to checkpoint file."""
+        if self.checkpoint_path is None:
+            return
+
+        self.checkpoint_state['results'] = [r.to_dict() for r in self.results]
+
+        self.checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
+        temp_path = self.checkpoint_path.with_suffix('.tmp')
+
+        with open(temp_path, 'w', encoding='utf-8') as f:
+            json.dump(self.checkpoint_state, f, indent=2, ensure_ascii=False)
+
+        # Atomic rename
+        temp_path.replace(self.checkpoint_path)
+
+    def load_checkpoint(self) -> bool:
+        """
+        Load checkpoint from file.
+
+        Returns:
+            True if checkpoint was loaded, False if no checkpoint exists
+        """
+        if self.checkpoint_path is None or not self.checkpoint_path.exists():
+            return False
+
+        with open(self.checkpoint_path, 'r', encoding='utf-8') as f:
+            self.checkpoint_state = json.load(f)
+
+        # Restore results
+        self.results = [
+            GenerationResult(**r) for r in self.checkpoint_state['results']
+        ]
+
+        return True
+
+    def print_checkpoint_diagnostics(self) -> None:
+        """Print diagnostic information about checkpoint progress."""
+        print("\n" + "=" * 80)
+        print("CHECKPOINT DIAGNOSTICS")
+        print("=" * 80)
+
+        total_a = len(self.prompts)
+        total_bcd = len(self.prompts) * self.config.K_SAMPLES
+
+        print(f"\nCondition A: {'COMPLETE' if self.checkpoint_state['condition_a_complete'] else 'NOT STARTED'}")
+        if self.checkpoint_state['condition_a_complete']:
+            print(f"  Generated: {total_a}/{total_a} outputs")
+
+        print(f"\nCondition B: {self.checkpoint_state['condition_b_progress']}/{total_bcd} generations")
+        if total_bcd > 0:
+            pct_b = (self.checkpoint_state['condition_b_progress'] / total_bcd) * 100
+            print(f"  Progress: {pct_b:.1f}%")
+
+        print(f"\nCondition C: {self.checkpoint_state['condition_c_progress']}/{total_bcd} generations")
+        if total_bcd > 0:
+            pct_c = (self.checkpoint_state['condition_c_progress'] / total_bcd) * 100
+            print(f"  Progress: {pct_c:.1f}%")
+
+        print(f"\nCondition D: {self.checkpoint_state['condition_d_progress']}/{total_bcd} generations")
+        if total_bcd > 0:
+            pct_d = (self.checkpoint_state['condition_d_progress'] / total_bcd) * 100
+            print(f"  Progress: {pct_d:.1f}%")
+
+        total_progress = (
+            (total_a if self.checkpoint_state['condition_a_complete'] else 0) +
+            self.checkpoint_state['condition_b_progress'] +
+            self.checkpoint_state['condition_c_progress'] +
+            self.checkpoint_state['condition_d_progress']
+        )
+        total_needed = total_a + (3 * total_bcd)
+
+        print(f"\nOverall Progress: {total_progress}/{total_needed} ({(total_progress/total_needed)*100:.1f}%)")
+        print(f"Results collected: {len(self.results)}")
+        print("=" * 80 + "\n")
 
     def setup(self) -> None:
         """Load model and prepare noise injector."""
@@ -364,6 +479,13 @@ class SanityCheckInference:
 
     def run_condition_a(self) -> List[GenerationResult]:
         """Condition A: Deterministic Baseline (temp=0, no noise, one sample per prompt)."""
+        # Skip if already complete
+        if self.checkpoint_state['condition_a_complete']:
+            print("\n" + "=" * 80)
+            print("CONDITION A: ALREADY COMPLETE (skipping)")
+            print("=" * 80)
+            return []
+
         print("\n" + "=" * 80)
         print("CONDITION A: DETERMINISTIC BASELINE")
         print("=" * 80)
@@ -407,6 +529,10 @@ class SanityCheckInference:
             if self.config.VERBOSE and self.config.SHOW_PROGRESS:
                 print(f"{len(generated)} chars")
 
+        # Mark as complete and save checkpoint
+        self.checkpoint_state['condition_a_complete'] = True
+        self.save_checkpoint()
+
         print(f"\nCondition A complete: {len(results)} outputs")
         return results
 
@@ -417,7 +543,14 @@ class SanityCheckInference:
         print("=" * 80)
         print(f"Settings: temperature={self.config.TEMPERATURE}, {self.config.K_SAMPLES} samples/prompt")
 
+        total_needed = len(self.prompts) * self.config.K_SAMPLES
+        start_from = self.checkpoint_state['condition_b_progress']
+
+        if start_from > 0:
+            print(f"Resuming from generation {start_from}/{total_needed}")
+
         results = []
+        generation_count = start_from
 
         for prompt_idx, prompt_text in enumerate(self.prompts):
             if self.config.SHOW_PROGRESS:
@@ -426,6 +559,11 @@ class SanityCheckInference:
             self.noise_injector.deactivate()
 
             for sample_idx in range(self.config.K_SAMPLES):
+                # Skip if already generated
+                if generation_count < start_from:
+                    generation_count += 1
+                    continue
+
                 if self.config.VERBOSE and self.config.SHOW_PROGRESS:
                     print(f"  Sample {sample_idx + 1}/{self.config.K_SAMPLES}...", end=" ")
 
@@ -449,11 +587,21 @@ class SanityCheckInference:
                     timestamp=datetime.now().isoformat(),
                 )
                 results.append(result)
+                generation_count += 1
+
+                # Update checkpoint every 10 generations
+                self.checkpoint_state['condition_b_progress'] = generation_count
+                if generation_count % self.checkpoint_interval == 0:
+                    self.save_checkpoint()
 
                 if self.config.VERBOSE and self.config.SHOW_PROGRESS:
                     print(f"{len(generated)} chars")
 
-        print(f"\nCondition B complete: {len(results)} outputs")
+        # Final checkpoint save
+        self.checkpoint_state['condition_b_progress'] = generation_count
+        self.save_checkpoint()
+
+        print(f"\nCondition B complete: {len(results)} new outputs (total: {generation_count})")
         return results
 
     def run_condition_c(self) -> List[GenerationResult]:
@@ -463,13 +611,25 @@ class SanityCheckInference:
         print("=" * 80)
         print(f"Settings: sigma={self.config.SIGMA_SCALE}, {self.config.K_SAMPLES} samples/prompt")
 
+        total_needed = len(self.prompts) * self.config.K_SAMPLES
+        start_from = self.checkpoint_state['condition_c_progress']
+
+        if start_from > 0:
+            print(f"Resuming from generation {start_from}/{total_needed}")
+
         results = []
+        generation_count = start_from
 
         for prompt_idx, prompt_text in enumerate(self.prompts):
             if self.config.SHOW_PROGRESS:
                 print(f"\nPrompt {prompt_idx + 1}/{len(self.prompts)}")
 
             for sample_idx in range(self.config.K_SAMPLES):
+                # Skip if already generated
+                if generation_count < start_from:
+                    generation_count += 1
+                    continue
+
                 if self.config.VERBOSE and self.config.SHOW_PROGRESS:
                     print(f"  Sample {sample_idx + 1}/{self.config.K_SAMPLES} (seed={sample_idx})...", end=" ")
 
@@ -498,11 +658,21 @@ class SanityCheckInference:
                     seed=sample_idx,
                 )
                 results.append(result)
+                generation_count += 1
+
+                # Update checkpoint every 10 generations
+                self.checkpoint_state['condition_c_progress'] = generation_count
+                if generation_count % self.checkpoint_interval == 0:
+                    self.save_checkpoint()
 
                 if self.config.VERBOSE and self.config.SHOW_PROGRESS:
                     print(f"{len(generated)} chars")
 
-        print(f"\nCondition C complete: {len(results)} outputs")
+        # Final checkpoint save
+        self.checkpoint_state['condition_c_progress'] = generation_count
+        self.save_checkpoint()
+
+        print(f"\nCondition C complete: {len(results)} new outputs (total: {generation_count})")
         return results
 
     def run_condition_d(self) -> List[GenerationResult]:
@@ -512,13 +682,25 @@ class SanityCheckInference:
         print("=" * 80)
         print(f"Settings: temp={self.config.TEMPERATURE}, sigma={self.config.SIGMA_SCALE}, {self.config.K_SAMPLES} samples/prompt")
 
+        total_needed = len(self.prompts) * self.config.K_SAMPLES
+        start_from = self.checkpoint_state['condition_d_progress']
+
+        if start_from > 0:
+            print(f"Resuming from generation {start_from}/{total_needed}")
+
         results = []
+        generation_count = start_from
 
         for prompt_idx, prompt_text in enumerate(self.prompts):
             if self.config.SHOW_PROGRESS:
                 print(f"\nPrompt {prompt_idx + 1}/{len(self.prompts)}")
 
             for sample_idx in range(self.config.K_SAMPLES):
+                # Skip if already generated
+                if generation_count < start_from:
+                    generation_count += 1
+                    continue
+
                 if self.config.VERBOSE and self.config.SHOW_PROGRESS:
                     print(f"  Sample {sample_idx + 1}/{self.config.K_SAMPLES} (seed={sample_idx})...", end=" ")
 
@@ -550,11 +732,21 @@ class SanityCheckInference:
                     seed=sample_idx,
                 )
                 results.append(result)
+                generation_count += 1
+
+                # Update checkpoint every 10 generations
+                self.checkpoint_state['condition_d_progress'] = generation_count
+                if generation_count % self.checkpoint_interval == 0:
+                    self.save_checkpoint()
 
                 if self.config.VERBOSE and self.config.SHOW_PROGRESS:
                     print(f"{len(generated)} chars")
 
-        print(f"\nCondition D complete: {len(results)} outputs")
+        # Final checkpoint save
+        self.checkpoint_state['condition_d_progress'] = generation_count
+        self.save_checkpoint()
+
+        print(f"\nCondition D complete: {len(results)} new outputs (total: {generation_count})")
         return results
 
     def run_all_conditions(self) -> List[GenerationResult]:
@@ -662,7 +854,21 @@ def main():
         default=None,
         help="GPU device ID to use (e.g., '0', '1', '0,1' for multiple GPUs). If not specified, uses all available GPUs."
     )
+    parser.add_argument(
+        "--start_from_beginning",
+        action="store_true",
+        help="Overwrite existing checkpoint and start from beginning"
+    )
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="Resume from last checkpoint (shows progress diagnostics)"
+    )
     args = parser.parse_args()
+
+    # Validate mutually exclusive arguments
+    if args.start_from_beginning and args.resume:
+        parser.error("--start_from_beginning and --resume are mutually exclusive")
 
     # Set GPU visibility if specified
     if args.gpu is not None:
@@ -718,7 +924,28 @@ def main():
 
     prompts = get_all_prompts()[:num_prompts]
 
-    inference = SanityCheckInference(config, prompts)
+    # Setup checkpoint path
+    checkpoint_path = output_dir / "checkpoint.json"
+
+    # Handle --start_from_beginning flag
+    if args.start_from_beginning:
+        if checkpoint_path.exists():
+            print(f"\nDeleting existing checkpoint: {checkpoint_path}")
+            checkpoint_path.unlink()
+        print("Starting from beginning (no checkpoint)")
+
+    # Create inference with checkpoint support
+    inference = SanityCheckInference(config, prompts, checkpoint_path=checkpoint_path)
+
+    # Handle --resume flag
+    if args.resume:
+        if inference.load_checkpoint():
+            print(f"\nLoaded checkpoint from: {checkpoint_path}")
+            inference.print_checkpoint_diagnostics()
+        else:
+            print(f"\nNo checkpoint found at: {checkpoint_path}")
+            print("Starting from beginning")
+
     inference.setup()
 
     results = inference.run_all_conditions()

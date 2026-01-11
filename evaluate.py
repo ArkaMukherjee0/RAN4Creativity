@@ -444,7 +444,9 @@ class LLMJudge:
                 messages=[
                     {"role": "user", "content": prompt}
                     ],
-                # reasoning_effort="medium",
+                reasoning_effort="high",
+                # include_reasoning=True,
+                reasoning_format="hidden",
             )
             return response.choices[0].message.content
 
@@ -514,6 +516,51 @@ class LLMJudge:
             )
 
 
+def save_judge_checkpoint(checkpoint_path: Path, progress: int, judgments: list[Judgment]) -> None:
+    """Save judge checkpoint to file atomically."""
+    checkpoint_state = {
+        'progress': progress,
+        'judgments': [asdict(j) for j in judgments],
+    }
+
+    checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
+    temp_path = checkpoint_path.with_suffix('.tmp')
+
+    with open(temp_path, 'w', encoding='utf-8') as f:
+        json.dump(checkpoint_state, f, indent=2, ensure_ascii=False)
+
+    # Atomic rename
+    temp_path.replace(checkpoint_path)
+
+
+def load_judge_checkpoint(checkpoint_path: Path) -> tuple[int, list[Judgment]]:
+    """
+    Load judge checkpoint from file.
+
+    Returns:
+        Tuple of (progress, judgments list). Returns (0, []) if no checkpoint exists.
+    """
+    if not checkpoint_path.exists():
+        return 0, []
+
+    with open(checkpoint_path, 'r', encoding='utf-8') as f:
+        state = json.load(f)
+
+    judgments = [Judgment(**j) for j in state.get('judgments', [])]
+    progress = state.get('progress', 0)
+
+    return progress, judgments
+
+
+def print_judge_diagnostics(progress: int, total: int) -> None:
+    """Print diagnostic information about judge checkpoint progress."""
+    print("\n" + "=" * 80)
+    print("CHECKPOINT DIAGNOSTICS")
+    print("=" * 80)
+    print(f"\nProgress: {progress}/{total} judgments ({(progress/total)*100:.1f}%)")
+    print("=" * 80 + "\n")
+
+
 def run_judge(
     provider: str,
     results_path: Path,
@@ -523,6 +570,8 @@ def run_judge(
     include_a: bool = False,
     model: Optional[str] = None,
     debug: bool = False,
+    start_from_beginning: bool = False,
+    resume: bool = False,
 ):
     """Run LLM judge on results."""
     with open(results_path, "r", encoding="utf-8") as f:
@@ -578,11 +627,41 @@ def run_judge(
     print(f"Judging {len(filtered)} outputs with {provider} ({judge.model})...")
     print(f"Conditions: {keep_conditions}")
 
+    # Setup checkpoint
+    checkpoint_path = output_jsonl.parent / f"{provider}_judge_checkpoint.json"
+    checkpoint_interval = 10
+
+    # Handle --start_from_beginning flag
+    if start_from_beginning:
+        if checkpoint_path.exists():
+            print(f"\nDeleting existing checkpoint: {checkpoint_path}")
+            checkpoint_path.unlink()
+        print("Starting from beginning (no checkpoint)")
+
+    # Load checkpoint if resuming
+    start_from = 0
     judgments: list[Judgment] = []
 
+    if resume:
+        start_from, judgments = load_judge_checkpoint(checkpoint_path)
+        if start_from > 0:
+            print(f"\nLoaded checkpoint from: {checkpoint_path}")
+            print_judge_diagnostics(start_from, len(filtered))
+        else:
+            print(f"\nNo checkpoint found at: {checkpoint_path}")
+            print("Starting from beginning")
+
     output_jsonl.parent.mkdir(parents=True, exist_ok=True)
-    with open(output_jsonl, "w", encoding="utf-8") as f_out:
+
+    # Open file in append mode if resuming, write mode otherwise
+    file_mode = "a" if (resume and start_from > 0) else "w"
+
+    with open(output_jsonl, file_mode, encoding="utf-8") as f_out:
         for i, r in enumerate(filtered):
+            # Skip already processed judgments
+            if i < start_from:
+                continue
+
             cond = r["condition"]
             print(f"  [{i + 1}/{len(filtered)}] {cond} p{r['prompt_idx']} s{r['sample_idx']}...", end=" ", flush=True)
 
@@ -597,6 +676,14 @@ def run_judge(
                 print(f"C={j.creativity_score} V={j.validity_score} {'PASS' if j.validity_pass else 'FAIL'}")
 
             time.sleep(judge.rate_limit_delay)
+
+            # Save checkpoint every 10 judgments
+            current_progress = i + 1
+            if current_progress % checkpoint_interval == 0:
+                save_judge_checkpoint(checkpoint_path, current_progress, judgments)
+
+    # Save final checkpoint
+    save_judge_checkpoint(checkpoint_path, len(filtered), judgments)
 
     # Aggregate summary
     print("\n" + "=" * 60)
@@ -682,8 +769,23 @@ def main():
     judge_parser.add_argument("--include-a", action="store_true")
     judge_parser.add_argument("--model", default=None)
     judge_parser.add_argument("--debug", action="store_true")
+    judge_parser.add_argument(
+        "--start_from_beginning",
+        action="store_true",
+        help="Overwrite existing checkpoint and start from beginning"
+    )
+    judge_parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="Resume from last checkpoint (shows progress diagnostics)"
+    )
 
     args = parser.parse_args()
+
+    # Validate mutually exclusive arguments for judge command
+    if args.command == "judge":
+        if args.start_from_beginning and args.resume:
+            parser.error("--start_from_beginning and --resume are mutually exclusive")
 
     if args.command == "metrics":
         results_path = Path(args.results)
@@ -727,6 +829,8 @@ def main():
             include_a=args.include_a,
             model=args.model,
             debug=args.debug,
+            start_from_beginning=args.start_from_beginning,
+            resume=args.resume,
         )
 
     else:
