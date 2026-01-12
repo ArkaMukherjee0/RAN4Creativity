@@ -900,9 +900,9 @@ def main():
     config.K_SAMPLES = num_generations
     config.MODEL_NAME = model_name
 
-    # Create output directory with model name and platform
+    # Create output directory with model name, platform, and generation count
     model_short_name = model_name.split('/')[-1]  # e.g., "Llama-3.1-8B" from "meta-llama/Llama-3.1-8B"
-    output_dir = Path(config.OUTPUT_DIR) / model_short_name / platform
+    output_dir = Path(config.OUTPUT_DIR) / model_short_name / platform / f"k{num_generations}"
 
     # Calculate total inferences
     # Condition A: num_prompts (1 per prompt)
