@@ -1,9 +1,10 @@
 """
 Prompt sets for competitive programming problem generation.
 
-Two prompt lists:
+Three prompt lists:
 - PROBLEM_GENERATION_PROMPTS_CF: 35 prompts for Codeforces Div-2 B style problems
 - PROBLEM_GENERATION_PROMPTS_LC: 20 prompts for LeetCode Medium-Hard problems
+- PROBLEM_GENERATION_PROMPTS_RIDDLE: 10 prompts for TED-Ed style logic riddles (CF-aligned philosophy)
 """
 
 # ============================================================================
@@ -528,18 +529,113 @@ LeetCode format required:
 # Helper Functions
 # ============================================================================
 
+# ============================================================================
+# TED-Ed Style Riddle Prompts (aligned with CF philosophy - open-ended)
+# ============================================================================
+
+PROBLEM_GENERATION_PROMPTS_RIDDLE = [
+    # Prompt 0: Base template - completely open
+    """Create a TED-Ed style logic riddle with a dramatic scenario.
+Include:
+• A high-stakes narrative setup (you must escape, save someone, outsmart a villain, etc.)
+• Clear rules and constraints the solver must work within
+• A non-obvious "aha!" insight required to solve it
+• The step-by-step solution with logical reasoning.""",
+
+    # Prompt 1: Minimal guidance variant
+    """Write a brain teaser in the style of TED-Ed riddle videos.
+The puzzle should:
+• Present a life-or-death or high-stakes scenario
+• Have simple rules that anyone can understand
+• Require clever logical deduction to solve
+• Include the full solution walkthrough.""",
+
+    # Prompt 2: Emphasis on insight
+    """Design a logic puzzle that hinges on a single key observation.
+Format as a TED-Ed riddle:
+• Engaging narrative premise
+• Clearly stated constraints
+• A twist or insight that makes the solution elegant
+• Complete solution explanation.""",
+
+    # Prompt 3: Mathematical reasoning (open-ended)
+    """Generate a TED-Ed style riddle involving mathematical or quantitative reasoning.
+Include:
+• A compelling story setup
+• Numerical or logical constraints
+• A solution requiring creative problem-solving
+• Step-by-step solution.""",
+
+    # Prompt 4: Deduction-focused
+    """Create a deduction puzzle in TED-Ed riddle format.
+Must have:
+• A scenario where information must be pieced together
+• Rules that seem limiting but enable a clever solution
+• The "aha!" moment that cracks the puzzle
+• Full logical walkthrough.""",
+
+    # Prompt 5: Adversarial/game theory flavor
+    """Write a TED-Ed style riddle involving strategy against an opponent or system.
+Include:
+• A scenario with an adversary, game, or challenge
+• Clear rules of engagement
+• A winning strategy that isn't immediately obvious
+• Solution with reasoning.""",
+
+    # Prompt 6: Constraint satisfaction
+    """Design a TED-Ed riddle where the solver must satisfy multiple constraints simultaneously.
+Provide:
+• An urgent narrative setup
+• Several rules that must all be followed
+• A solution that elegantly satisfies everything
+• Detailed explanation.""",
+
+    # Prompt 7: Lateral thinking emphasis
+    """Generate a lateral thinking puzzle in TED-Ed riddle style.
+The problem should:
+• Present a seemingly impossible situation
+• Have an unconventional but logical solution
+• Require thinking outside initial assumptions
+• Include the full solution.""",
+
+    # Prompt 8: Optimization under constraints
+    """Create a TED-Ed style riddle about finding the best strategy under limitations.
+Include:
+• A dramatic scenario with scarce resources or time
+• Constraints that shape the solution space
+• An optimal approach that requires insight to discover
+• Complete solution walkthrough.""",
+
+    # Prompt 9: Information and certainty
+    """Write a TED-Ed riddle involving hidden information or uncertainty.
+Must contain:
+• A scenario where not everything is known upfront
+• Rules about what can be discovered or deduced
+• A strategy to guarantee success despite uncertainty
+• Full solution with logic.""",
+]
+
+
 def get_prompt(idx: int, platform: str = "codeforces") -> str:
     """
     Get a prompt by index.
 
     Args:
         idx: Prompt index
-        platform: "codeforces" or "leetcode"
+        platform: "codeforces", "leetcode", or "riddle"
 
     Returns:
         The prompt string
     """
-    prompts = PROBLEM_GENERATION_PROMPTS_CF if platform == "codeforces" else PROBLEM_GENERATION_PROMPTS_LC
+    if platform == "codeforces":
+        prompts = PROBLEM_GENERATION_PROMPTS_CF
+    elif platform == "leetcode":
+        prompts = PROBLEM_GENERATION_PROMPTS_LC
+    elif platform == "riddle":
+        prompts = PROBLEM_GENERATION_PROMPTS_RIDDLE
+    else:
+        raise ValueError(f"Unknown platform: {platform}. Use 'codeforces', 'leetcode', or 'riddle'")
+
     if not 0 <= idx < len(prompts):
         raise ValueError(f"Prompt index must be 0-{len(prompts)-1}, got {idx}")
     return prompts[idx]
@@ -550,7 +646,7 @@ def get_all_prompts(platform: str = "codeforces") -> list[str]:
     Get all prompts for a platform.
 
     Args:
-        platform: "codeforces" or "leetcode"
+        platform: "codeforces", "leetcode", or "riddle"
 
     Returns:
         List of prompt strings
@@ -559,5 +655,7 @@ def get_all_prompts(platform: str = "codeforces") -> list[str]:
         return PROBLEM_GENERATION_PROMPTS_CF.copy()
     elif platform == "leetcode":
         return PROBLEM_GENERATION_PROMPTS_LC.copy()
+    elif platform == "riddle":
+        return PROBLEM_GENERATION_PROMPTS_RIDDLE.copy()
     else:
-        raise ValueError(f"Unknown platform: {platform}. Use 'codeforces' or 'leetcode'")
+        raise ValueError(f"Unknown platform: {platform}. Use 'codeforces', 'leetcode', or 'riddle'")
