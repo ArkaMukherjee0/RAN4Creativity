@@ -834,7 +834,7 @@ def main():
         "--num_prompts",
         type=int,
         default=config.N_PROMPTS,
-        help=f"Number of prompts to use (default: {config.N_PROMPTS}, max: 35 for Codeforces, 20 for LeetCode)"
+        help=f"Number of prompts to use (default: {config.N_PROMPTS}, max: 35 for Codeforces, 20 for LeetCode, 10 for Riddle)"
     )
     parser.add_argument(
         "--num_generations",
@@ -877,6 +877,11 @@ def main():
         action="store_true",
         help="Use LeetCode Medium-Hard prompts"
     )
+    platform_group.add_argument(
+        "--riddle",
+        action="store_true",
+        help="Use TED-Ed style riddle prompts (CF-aligned philosophy)"
+    )
     args = parser.parse_args()
 
     # Validate mutually exclusive arguments
@@ -884,7 +889,12 @@ def main():
         parser.error("--start_from_beginning and --resume are mutually exclusive")
 
     # Determine platform (default to codeforces)
-    platform = "leetcode" if args.leetcode else "codeforces"
+    if args.leetcode:
+        platform = "leetcode"
+    elif args.riddle:
+        platform = "riddle"
+    else:
+        platform = "codeforces"
 
     # Set GPU visibility if specified
     if args.gpu is not None:
@@ -910,7 +920,11 @@ def main():
     total_inferences = num_prompts + (num_prompts * num_generations * 3)
 
     # Get platform display name
-    platform_display = "Codeforces Div-2 B" if platform == "codeforces" else "LeetCode Medium-Hard"
+    platform_display = {
+        "codeforces": "Codeforces Div-2 B",
+        "leetcode": "LeetCode Medium-Hard",
+        "riddle": "TED-Ed Style Riddles",
+    }[platform]
 
     print("""
 ================================================================================
