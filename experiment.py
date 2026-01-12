@@ -834,7 +834,7 @@ def main():
         "--num_prompts",
         type=int,
         default=config.N_PROMPTS,
-        help=f"Number of prompts to use (default: {config.N_PROMPTS}, max: 35)"
+        help=f"Number of prompts to use (default: {config.N_PROMPTS}, max: 35 for Codeforces, 20 for LeetCode)"
     )
     parser.add_argument(
         "--num_generations",
@@ -864,11 +864,27 @@ def main():
         action="store_true",
         help="Resume from last checkpoint (shows progress diagnostics)"
     )
+
+    # Platform selection (mutually exclusive)
+    platform_group = parser.add_mutually_exclusive_group()
+    platform_group.add_argument(
+        "--codeforces",
+        action="store_true",
+        help="Use Codeforces Div-2 B prompts (default)"
+    )
+    platform_group.add_argument(
+        "--leetcode",
+        action="store_true",
+        help="Use LeetCode Medium-Hard prompts"
+    )
     args = parser.parse_args()
 
     # Validate mutually exclusive arguments
     if args.start_from_beginning and args.resume:
         parser.error("--start_from_beginning and --resume are mutually exclusive")
+
+    # Determine platform (default to codeforces)
+    platform = "leetcode" if args.leetcode else "codeforces"
 
     # Set GPU visibility if specified
     if args.gpu is not None:
@@ -884,14 +900,17 @@ def main():
     config.K_SAMPLES = num_generations
     config.MODEL_NAME = model_name
 
-    # Create output directory with model name
+    # Create output directory with model name and platform
     model_short_name = model_name.split('/')[-1]  # e.g., "Llama-3.1-8B" from "meta-llama/Llama-3.1-8B"
-    output_dir = Path(config.OUTPUT_DIR) / model_short_name
+    output_dir = Path(config.OUTPUT_DIR) / model_short_name / platform
 
     # Calculate total inferences
     # Condition A: num_prompts (1 per prompt)
     # Conditions B, C, D: num_prompts * num_generations each
     total_inferences = num_prompts + (num_prompts * num_generations * 3)
+
+    # Get platform display name
+    platform_display = "Codeforces Div-2 B" if platform == "codeforces" else "LeetCode Medium-Hard"
 
     print("""
 ================================================================================
@@ -901,6 +920,7 @@ def main():
 
     print("Configuration:")
     print(f"  Model: {config.MODEL_NAME}")
+    print(f"  Platform: {platform_display}")
     print(f"  GPU: {args.gpu if args.gpu else 'all available'}")
     print(f"  Prompts: {num_prompts}")
     print(f"  Samples per condition:")
@@ -922,7 +942,7 @@ def main():
         print("Experiment cancelled.")
         return
 
-    prompts = get_all_prompts()[:num_prompts]
+    prompts = get_all_prompts(platform)[:num_prompts]
 
     # Setup checkpoint path
     checkpoint_path = output_dir / "checkpoint.json"

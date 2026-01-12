@@ -1,11 +1,16 @@
 """
-Prompt set for competitive programming problem generation.
+Prompt sets for competitive programming problem generation.
 
-35 distinct prompts with variations in wording and emphasis.
-All ask for the same task: Codeforces Div-2 B style problem.
+Two prompt lists:
+- PROBLEM_GENERATION_PROMPTS_CF: 35 prompts for Codeforces Div-2 B style problems
+- PROBLEM_GENERATION_PROMPTS_LC: 20 prompts for LeetCode Medium-Hard problems
 """
 
-PROBLEM_GENERATION_PROMPTS = [
+# ============================================================================
+# Codeforces Prompts (Div-2 B difficulty)
+# ============================================================================
+
+PROBLEM_GENERATION_PROMPTS_CF = [
     # Prompt 0: Base template
     """Generate a competitive programming problem suitable for Codeforces Div-2 B.
 Include:
@@ -312,13 +317,247 @@ Include:
 ]
 
 
-def get_prompt(idx: int) -> str:
-    """Get a prompt by index (0-34)."""
-    if not 0 <= idx < len(PROBLEM_GENERATION_PROMPTS):
-        raise ValueError(f"Prompt index must be 0-{len(PROBLEM_GENERATION_PROMPTS)-1}, got {idx}")
-    return PROBLEM_GENERATION_PROMPTS[idx]
+# ============================================================================
+# LeetCode Prompts (Medium to Hard difficulty)
+# ============================================================================
+
+PROBLEM_GENERATION_PROMPTS_LC = [
+    # Prompt 0: Base template
+    """Generate a LeetCode-style algorithm problem at Medium or Hard difficulty (no Easy problems).
+Follow the standard LeetCode problem format:
+• Problem title
+• Problem description with clear narrative
+• Function signature to implement
+• Constraints section
+• Example inputs and outputs with explanations
+• Brief solution approach.""",
+
+    # Prompt 1: Emphasize difficulty
+    """Create a LeetCode Medium-Hard difficulty algorithm problem.
+Must follow LeetCode's official problem structure:
+• Title
+• Description
+• Function signature (e.g., def solve(nums: List[int]) -> int)
+• Constraints
+• Examples with input/output/explanation
+• Solution hint.""",
+
+    # Prompt 2: Array focus
+    """Write a LeetCode Medium or Hard problem involving array manipulation.
+Use LeetCode's standard format:
+• Problem title
+• Detailed problem statement
+• Function signature to implement
+• Constraints (array size, element bounds)
+• 2-3 examples with explanations
+• Solution approach.""",
+
+    # Prompt 3: String manipulation
+    """Design a LeetCode Medium-Hard string problem.
+Follow LeetCode problem writing structure:
+• Title
+• Problem description
+• Function signature
+• String constraints (length, character set)
+• Example cases with explanations
+• Brief solution strategy.""",
+
+    # Prompt 4: Dynamic programming
+    """Generate a LeetCode Medium or Hard problem solvable with dynamic programming.
+Adhere to LeetCode format:
+• Problem title
+• Clear problem statement
+• Function signature
+• Constraints
+• Examples with step-by-step explanation
+• DP approach hint.""",
+
+    # Prompt 5: Graph problem
+    """Create a LeetCode Medium-Hard graph algorithm problem.
+Use standard LeetCode structure:
+• Title
+• Problem description with graph context
+• Function signature (adjacency list or edge list input)
+• Constraints (nodes, edges)
+• Examples with visual explanation if needed
+• Solution outline.""",
+
+    # Prompt 6: Tree problem
+    """Write a LeetCode Medium or Hard binary tree problem.
+Follow LeetCode's format:
+• Problem title
+• Tree-based problem statement
+• Function signature with TreeNode parameter
+• Constraints (number of nodes, value range)
+• Examples showing tree structure
+• Solution approach.""",
+
+    # Prompt 7: Two pointers
+    """Design a LeetCode Medium-Hard problem solvable with two-pointer technique.
+LeetCode format required:
+• Title
+• Problem description
+• Function signature
+• Constraints
+• Examples with explanations
+• Two-pointer hint.""",
+
+    # Prompt 8: Sliding window
+    """Generate a LeetCode Medium or Hard sliding window problem.
+Must follow LeetCode structure:
+• Problem title
+• Detailed description
+• Function signature to implement
+• Constraints
+• Example inputs/outputs with explanations
+• Window approach hint.""",
+
+    # Prompt 9: Binary search
+    """Create a LeetCode Medium-Hard problem where binary search is the optimal approach.
+Use LeetCode's problem format:
+• Title
+• Problem statement
+• Function signature
+• Constraints (sorted input or search space)
+• Examples with explanations
+• Search space hint.""",
+
+    # Prompt 10: Hash map/set
+    """Write a LeetCode Medium or Hard problem requiring hash-based data structures.
+Follow LeetCode format:
+• Problem title
+• Problem description
+• Function signature
+• Constraints
+• Examples with explanations
+• Hash strategy hint.""",
+
+    # Prompt 11: Stack/Queue
+    """Design a LeetCode Medium-Hard problem using stack or queue.
+LeetCode structure required:
+• Title
+• Problem statement
+• Function signature
+• Constraints
+• Examples with step-by-step explanation
+• Data structure hint.""",
+
+    # Prompt 12: Heap/Priority queue
+    """Generate a LeetCode Medium or Hard problem solvable with heaps.
+Must use LeetCode format:
+• Problem title
+• Detailed description
+• Function signature
+• Constraints
+• Examples with explanations
+• Heap approach hint.""",
+
+    # Prompt 13: Backtracking
+    """Create a LeetCode Medium-Hard backtracking problem.
+Follow LeetCode's standard structure:
+• Title
+• Problem description
+• Function signature (often returns list of solutions)
+• Constraints
+• Examples showing all valid outputs
+• Backtracking strategy.""",
+
+    # Prompt 14: Greedy algorithm
+    """Write a LeetCode Medium or Hard problem with a greedy solution.
+Use LeetCode format:
+• Problem title
+• Problem statement
+• Function signature
+• Constraints
+• Examples with explanations
+• Greedy insight hint.""",
+
+    # Prompt 15: Bit manipulation
+    """Design a LeetCode Medium-Hard bit manipulation problem.
+LeetCode structure:
+• Title
+• Problem description
+• Function signature
+• Constraints (integer bounds)
+• Examples with binary explanations
+• Bit operation hint.""",
+
+    # Prompt 16: Linked list
+    """Generate a LeetCode Medium or Hard linked list problem.
+Follow LeetCode format:
+• Problem title
+• Detailed description
+• Function signature with ListNode parameter
+• Constraints (list length, values)
+• Examples showing list transformations
+• Solution approach.""",
+
+    # Prompt 17: Matrix/2D array
+    """Create a LeetCode Medium-Hard matrix problem.
+Must use LeetCode structure:
+• Problem title
+• Problem statement with grid context
+• Function signature (2D array input)
+• Constraints (rows, columns, values)
+• Examples with grid visualization
+• Solution strategy.""",
+
+    # Prompt 18: Union-Find
+    """Write a LeetCode Medium or Hard problem solvable with Union-Find.
+Follow LeetCode format:
+• Title
+• Problem description (connectivity/grouping theme)
+• Function signature
+• Constraints
+• Examples with explanations
+• Union-Find hint.""",
+
+    # Prompt 19: Trie
+    """Design a LeetCode Medium-Hard problem involving Trie data structure.
+LeetCode format required:
+• Problem title
+• Problem statement (prefix/word search theme)
+• Class or function signature
+• Constraints (word count, length)
+• Examples with explanations
+• Trie approach hint.""",
+]
 
 
-def get_all_prompts() -> list[str]:
-    """Get all prompts as a list."""
-    return PROBLEM_GENERATION_PROMPTS.copy()
+# ============================================================================
+# Helper Functions
+# ============================================================================
+
+def get_prompt(idx: int, platform: str = "codeforces") -> str:
+    """
+    Get a prompt by index.
+
+    Args:
+        idx: Prompt index
+        platform: "codeforces" or "leetcode"
+
+    Returns:
+        The prompt string
+    """
+    prompts = PROBLEM_GENERATION_PROMPTS_CF if platform == "codeforces" else PROBLEM_GENERATION_PROMPTS_LC
+    if not 0 <= idx < len(prompts):
+        raise ValueError(f"Prompt index must be 0-{len(prompts)-1}, got {idx}")
+    return prompts[idx]
+
+
+def get_all_prompts(platform: str = "codeforces") -> list[str]:
+    """
+    Get all prompts for a platform.
+
+    Args:
+        platform: "codeforces" or "leetcode"
+
+    Returns:
+        List of prompt strings
+    """
+    if platform == "codeforces":
+        return PROBLEM_GENERATION_PROMPTS_CF.copy()
+    elif platform == "leetcode":
+        return PROBLEM_GENERATION_PROMPTS_LC.copy()
+    else:
+        raise ValueError(f"Unknown platform: {platform}. Use 'codeforces' or 'leetcode'")
