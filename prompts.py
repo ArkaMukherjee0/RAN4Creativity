@@ -4,7 +4,7 @@ Prompt sets for competitive programming problem generation.
 Three prompt lists:
 - PROBLEM_GENERATION_PROMPTS_CF: 35 prompts for Codeforces Div-2 B style problems
 - PROBLEM_GENERATION_PROMPTS_LC: 20 prompts for LeetCode Medium-Hard problems
-- PROBLEM_GENERATION_PROMPTS_RIDDLE: 10 prompts for TED-Ed style logic riddles (CF-aligned philosophy)
+- PROBLEM_GENERATION_PROMPTS_RIDDLE: 10 prompts for logic riddles (CF-aligned: structured format, no topic constraint)
 """
 
 # ============================================================================
@@ -530,89 +530,99 @@ LeetCode format required:
 # ============================================================================
 
 # ============================================================================
-# TED-Ed Style Riddle Prompts (aligned with CF philosophy - open-ended)
+# Logic Riddle Prompts (CF-aligned philosophy - open-ended, no topic constraint)
 # ============================================================================
 
 PROBLEM_GENERATION_PROMPTS_RIDDLE = [
-    # Prompt 0: Base template - completely open
-    """Create a TED-Ed style logic riddle with a dramatic scenario.
-Include:
-• A high-stakes narrative setup (you must escape, save someone, outsmart a villain, etc.)
-• Clear rules and constraints the solver must work within
-• A non-obvious "aha!" insight required to solve it
-• The step-by-step solution with logical reasoning.""",
+    # Prompt 0: Base template
+    """Write a logic puzzle.
 
-    # Prompt 1: Minimal guidance variant
-    """Write a brain teaser in the style of TED-Ed riddle videos.
-The puzzle should:
-• Present a life-or-death or high-stakes scenario
-• Have simple rules that anyone can understand
-• Require clever logical deduction to solve
-• Include the full solution walkthrough.""",
+SCENARIO:
+[Describe a situation with a challenge to overcome]
 
-    # Prompt 2: Emphasis on insight
-    """Design a logic puzzle that hinges on a single key observation.
-Format as a TED-Ed riddle:
-• Engaging narrative premise
-• Clearly stated constraints
-• A twist or insight that makes the solution elegant
-• Complete solution explanation.""",
+RULES:
+[List the constraints that must be followed]
 
-    # Prompt 3: Mathematical reasoning (open-ended)
-    """Generate a TED-Ed style riddle involving mathematical or quantitative reasoning.
-Include:
-• A compelling story setup
-• Numerical or logical constraints
-• A solution requiring creative problem-solving
+QUESTION:
+[What must the solver figure out?]
+
+SOLUTION:
+[Step-by-step logical reasoning to the answer]""",
+
+    # Prompt 1: Slightly different phrasing
+    """Create a logic riddle with the following structure:
+
+SCENARIO:
+A situation where someone faces a logical challenge.
+
+RULES:
+The constraints they must work within.
+
+QUESTION:
+What they need to determine or accomplish.
+
+SOLUTION:
+The reasoning that leads to the answer.""",
+
+    # Prompt 2: More directive tone
+    """Design a logic puzzle.
+Provide:
+• Scenario description
+• Rules and constraints
+• The question to solve
 • Step-by-step solution.""",
 
-    # Prompt 4: Deduction-focused
-    """Create a deduction puzzle in TED-Ed riddle format.
-Must have:
-• A scenario where information must be pieced together
-• Rules that seem limiting but enable a clever solution
-• The "aha!" moment that cracks the puzzle
-• Full logical walkthrough.""",
-
-    # Prompt 5: Adversarial/game theory flavor
-    """Write a TED-Ed style riddle involving strategy against an opponent or system.
-Include:
-• A scenario with an adversary, game, or challenge
-• Clear rules of engagement
-• A winning strategy that isn't immediately obvious
-• Solution with reasoning.""",
-
-    # Prompt 6: Constraint satisfaction
-    """Design a TED-Ed riddle where the solver must satisfy multiple constraints simultaneously.
-Provide:
-• An urgent narrative setup
-• Several rules that must all be followed
-• A solution that elegantly satisfies everything
-• Detailed explanation.""",
-
-    # Prompt 7: Lateral thinking emphasis
-    """Generate a lateral thinking puzzle in TED-Ed riddle style.
-The problem should:
-• Present a seemingly impossible situation
-• Have an unconventional but logical solution
-• Require thinking outside initial assumptions
-• Include the full solution.""",
-
-    # Prompt 8: Optimization under constraints
-    """Create a TED-Ed style riddle about finding the best strategy under limitations.
-Include:
-• A dramatic scenario with scarce resources or time
-• Constraints that shape the solution space
-• An optimal approach that requires insight to discover
-• Complete solution walkthrough.""",
-
-    # Prompt 9: Information and certainty
-    """Write a TED-Ed riddle involving hidden information or uncertainty.
+    # Prompt 3: Emphasize completeness
+    """Write a complete logic riddle.
 Must contain:
-• A scenario where not everything is known upfront
-• Rules about what can be discovered or deduced
-• A strategy to guarantee success despite uncertainty
-• Full solution with logic.""",
+• A scenario with a challenge
+• Clear rules
+• A question
+• Full solution with reasoning.""",
+
+    # Prompt 4: Alternative structure
+    """Compose a logic puzzle with these sections:
+• Situation setup
+• Constraints
+• The problem to solve
+• Logical solution walkthrough.""",
+
+    # Prompt 5: Focus on structure
+    """Generate a logic riddle that includes:
+• Scenario
+• Rules
+• Question
+• Solution explanation.""",
+
+    # Prompt 6: Slightly formal
+    """Construct a logic puzzle matching this format:
+• Problem scenario
+• Constraint rules
+• Challenge question
+• Solution reasoning.""",
+
+    # Prompt 7: Emphasize structure
+    """Create a structured logic riddle.
+Components needed:
+• Scenario setup
+• Rule constraints  
+• Question posed
+• Solution steps.""",
+
+    # Prompt 8: Direct and concise
+    """Write a logic puzzle with:
+• Scenario
+• Rules
+• Question
+• Solution.""",
+
+    # Prompt 9: Slightly varied emphasis
+    """Develop a logic riddle.
+Include:
+• Detailed scenario
+• Clear constraints
+• The puzzle question
+• Complete solution.""",
 ]
 
 
