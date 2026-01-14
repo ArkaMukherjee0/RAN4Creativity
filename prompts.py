@@ -1,10 +1,11 @@
 """
 Prompt sets for competitive programming problem generation.
 
-Three prompt lists:
+Four prompt lists:
 - PROBLEM_GENERATION_PROMPTS_CF: 35 prompts for Codeforces Div-2 B style problems
 - PROBLEM_GENERATION_PROMPTS_LC: 20 prompts for LeetCode Medium-Hard problems
 - PROBLEM_GENERATION_PROMPTS_RIDDLE: 10 prompts for TED-Ed style logic riddles (CF-aligned philosophy)
+- PROBLEM_GENERATION_PROMPTS_MATH: 10 prompts for grade school math word problems (CF-aligned philosophy)
 """
 
 # ============================================================================
@@ -616,13 +617,87 @@ Must contain:
 ]
 
 
+# ============================================================================
+# Grade School Math Prompts (aligned with CF philosophy - open-ended)
+# ============================================================================
+
+PROBLEM_GENERATION_PROMPTS_MATH = [
+    # Prompt 0: Base template - completely open
+    """Generate a grade school math word problem.
+Include:
+• A clear problem statement with a real-world scenario
+• All necessary information to solve it
+• The answer with step-by-step solution.""",
+
+    # Prompt 1: Slightly different phrasing
+    """Create a math word problem suitable for elementary or middle school students.
+The problem should have:
+• An engaging real-world context
+• Clear numerical information
+• A complete solution with explanation.""",
+
+    # Prompt 2: Emphasize clarity
+    """Write a math problem that a grade school student could solve.
+Include:
+• A straightforward problem statement
+• All required numbers and facts
+• Step-by-step solution.""",
+
+    # Prompt 3: Story-based emphasis
+    """Design a math word problem with an interesting story.
+Provide:
+• A fun or relatable scenario
+• The mathematical question to answer
+• Full solution with reasoning.""",
+
+    # Prompt 4: Practical context
+    """Generate a practical math problem for young students.
+Must include:
+• A realistic everyday situation
+• Clear problem setup
+• Answer and solution steps.""",
+
+    # Prompt 5: Alternative structure
+    """Create an elementary-level math problem.
+Include:
+• Problem description with context
+• All necessary information
+• Complete worked solution.""",
+
+    # Prompt 6: Concise variant
+    """Write a grade school math word problem with solution.
+Include: problem statement, all given information, step-by-step answer.""",
+
+    # Prompt 7: Focus on reasoning
+    """Generate a math problem that requires logical thinking.
+The problem should:
+• Be appropriate for grade school level
+• Have a clear question
+• Include the full solution process.""",
+
+    # Prompt 8: Engaging scenario
+    """Create a fun math word problem for students.
+Provide:
+• An interesting problem setup
+• The question to solve
+• Detailed solution.""",
+
+    # Prompt 9: Direct and simple
+    """Write a simple math word problem.
+Include:
+• Clear problem statement
+• Given information
+• Answer with explanation.""",
+]
+
+
 def get_prompt(idx: int, platform: str = "codeforces") -> str:
     """
     Get a prompt by index.
 
     Args:
         idx: Prompt index
-        platform: "codeforces", "leetcode", or "riddle"
+        platform: "codeforces", "leetcode", "riddle", or "math"
 
     Returns:
         The prompt string
@@ -633,8 +708,10 @@ def get_prompt(idx: int, platform: str = "codeforces") -> str:
         prompts = PROBLEM_GENERATION_PROMPTS_LC
     elif platform == "riddle":
         prompts = PROBLEM_GENERATION_PROMPTS_RIDDLE
+    elif platform == "math":
+        prompts = PROBLEM_GENERATION_PROMPTS_MATH
     else:
-        raise ValueError(f"Unknown platform: {platform}. Use 'codeforces', 'leetcode', or 'riddle'")
+        raise ValueError(f"Unknown platform: {platform}. Use 'codeforces', 'leetcode', 'riddle', or 'math'")
 
     if not 0 <= idx < len(prompts):
         raise ValueError(f"Prompt index must be 0-{len(prompts)-1}, got {idx}")
@@ -646,7 +723,7 @@ def get_all_prompts(platform: str = "codeforces") -> list[str]:
     Get all prompts for a platform.
 
     Args:
-        platform: "codeforces", "leetcode", or "riddle"
+        platform: "codeforces", "leetcode", "riddle", or "math"
 
     Returns:
         List of prompt strings
@@ -657,5 +734,7 @@ def get_all_prompts(platform: str = "codeforces") -> list[str]:
         return PROBLEM_GENERATION_PROMPTS_LC.copy()
     elif platform == "riddle":
         return PROBLEM_GENERATION_PROMPTS_RIDDLE.copy()
+    elif platform == "math":
+        return PROBLEM_GENERATION_PROMPTS_MATH.copy()
     else:
-        raise ValueError(f"Unknown platform: {platform}. Use 'codeforces', 'leetcode', or 'riddle'")
+        raise ValueError(f"Unknown platform: {platform}. Use 'codeforces', 'leetcode', 'riddle', or 'math'")
