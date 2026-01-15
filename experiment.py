@@ -834,7 +834,7 @@ def main():
         "--num_prompts",
         type=int,
         default=config.N_PROMPTS,
-        help=f"Number of prompts to use (default: {config.N_PROMPTS}, max: 35 for Codeforces, 20 for LeetCode, 10 for Riddle)"
+        help=f"Number of prompts to use (default: {config.N_PROMPTS}, max: 35 for Codeforces, 20 for LeetCode, 10 for Riddle/Math)"
     )
     parser.add_argument(
         "--num_generations",
@@ -882,6 +882,11 @@ def main():
         action="store_true",
         help="Use TED-Ed style riddle prompts (CF-aligned philosophy)"
     )
+    platform_group.add_argument(
+        "--math",
+        action="store_true",
+        help="Use grade school math word problem prompts (CF-aligned philosophy)"
+    )
     args = parser.parse_args()
 
     # Validate mutually exclusive arguments
@@ -893,6 +898,8 @@ def main():
         platform = "leetcode"
     elif args.riddle:
         platform = "riddle"
+    elif args.math:
+        platform = "math"
     else:
         platform = "codeforces"
 
@@ -924,6 +931,7 @@ def main():
         "codeforces": "Codeforces Div-2 B",
         "leetcode": "LeetCode Medium-Hard",
         "riddle": "TED-Ed Style Riddles",
+        "math": "Grade School Math",
     }[platform]
 
     print("""
